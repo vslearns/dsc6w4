@@ -1,0 +1,101 @@
+---
+title: Sample Means of an Exponential Function
+author: VS
+output: pdf_document
+---
+
+## Introduction
+In this "study," we're going to take a look at a sample of exponential distributions and compare its mean and variance to the expected mean and variance, mathematically calculated.
+
+## Required Libraries
+For ease (and beauty) of graphing, let's use the ggplot2 library.
+
+```{r}
+library(ggplot2)
+```
+
+## Setup
+To ensure reproducibility, let's set a random seed. We'll also define our variables for future use.
+
+```{r}
+set.seed(8243)            # reproducibility
+
+lambda <- 0.2             # as instructed
+sample.size <- 40         # as instructed
+sample.num <- 1000        # as instructed
+
+binwidth <- 0.1           # a near-perfect binwidth :)
+steelblue <- "steelblue"  # a great fill color
+orange <- "#c56000"       # a great line color
+
+```
+
+## Accumulation
+Let's begin by accumulating our samples. For this project, we take 1,000 samples of size 40 from an exponential distribution.
+
+```{r}
+exp.mns <- NULL
+for (i in 1 : sample.num) exp.mns = c(exp.mns, mean(rexp(sample.size, lambda)))
+```
+
+## Display
+Firstly, we'll make a histogram of our sample means with a relevant normal density curve superimposed to show the decent normality of our data.
+
+```{r}
+qplot(exp.mns, geom="histogram", binwidth = binwidth, fill = I(steelblue)) +
+  stat_function( 
+    fun = function(x, mean, sd, n, bin){ 
+      dnorm(x = x, mean = mean, sd = sd) * n * bin
+    }, 
+    args = c(mean = 1/lambda, sd = (1/lambda)/sqrt(sample.size), n = sample.num, bin = binwidth), col = I(orange), size = 1.1) +
+  labs(title = "Distribution of Sample Means", x = "") + 
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+### Comparisons
+Let's take a look at the theoretical versus the sample means.
+
+```{r, results='hide'}
+## Theoretical Mean
+1/lambda
+
+## Experimental Mean
+mean(exp.mns)
+```
+
+Running this code gives us a theoretical mean of `r 1/lambda` and an experimental mean of `r mean(exp.mns)`. Pretty close.
+
+Let's look at the variances as well.
+
+```{r, results='hide'}
+## Theoretical Variance
+((1/lambda)^2)/sample.size
+
+## Experimental Variance
+var(exp.mns)
+```
+
+Running this code gives us a theoretical variance of `r ((1/lambda)^2)/sample.size` and an experimental variance of `r var(exp.mns)`. Again, pretty close.
+
+### Check for Normality
+If you weren't hold from the histogram, let's make a normal quantile plot of the data. Essentially, the normal quantile plot's linearity is what proves the normality of the data -- the more linear the plot, the more normal the data.
+
+```{r}
+x <- qnorm(c(0.25, 0.75))
+y <- quantile(exp.mns, c(0.25, 0.75))
+
+slope <- diff(y)/diff(x)
+int <- y[1L] - (slope * x[1L])
+
+d <- data.frame(exp.mns)
+
+ggplot(d, aes(sample = exp.mns, col = I(steelblue))) + geom_qq() + 
+  geom_abline(slope = slope, intercept = int, col = I(orange), size = 1.1) +
+  labs(title = "Normal Quantile Plot of Sample Means", x = "", y = "") + 
+  theme(plot.title = element_text(hjust = 0.5)) + coord_flip()
+
+```
+
+The graph here looks *pretty* linear, as seen by its proximity to the approximation line (were the data perfectly normal, all data was reside on said line). We can safely conclude that the data here is normal.
+
+

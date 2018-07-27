@@ -1,0 +1,129 @@
+---
+title: An Investigation of Tooth Growth
+author: VS
+output: pdf_document
+---
+
+## Introduction
+In this "study," we're going to take a look at a sample of exponential distributions and compare its mean and variance to the expected mean and variance, mathematically calculated.
+
+## Required Libraries
+For ease (and beauty) of graphing, let's use the `ggplot2` library with `gridExtra` (for the `grid.arrange()` function).
+
+```{r}
+library(ggplot2)
+library(gridExtra)
+
+library(datasets)
+```
+
+## Setup
+To ensure reproducibility, let's set a random seed. We'll also define our variables for future use.
+
+```{r}
+teeth <- ToothGrowth      # a local copy won't hurt
+set.seed(8243)            # reproducibility
+
+binwidth <- 0.1           # a near-perfect binwidth :)
+steelblue <- "steelblue"  # a great fill color
+orange <- "#c56000"       # a great line color
+```
+
+## EDA
+Let's begin by doing some exploratory data anlysis.
+
+```{r}
+levels(teeth$supp) <- c("Orange Juice", "Ascorbic Acid")
+
+ggplot(teeth, aes(x = factor(dose), y = len)) +
+  facet_grid(. ~ supp) +
+  geom_boxplot(aes(fill = supp), show.legend = F) +
+  theme_bw() +
+  labs(title = "Guinea Pig Tooth Length by Supplement Dose", x = "Dose (mg/day)", y = "Tooth Length") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+At first sight, it appears that orange juice is more effective in increasing tooth length across a 0.5 and 1.0 milligram/day dose. Ascorbic acid seems to have a greater range of effect when the dose is 2.0 milligrams/day. Regardless of the type of supplement, tooth growth seems to increase with higher doses.
+
+## Normality
+Before conducting our hypothesis tests, let's perform an arbitrary check for normality on the datasets by supplement. For concision, we won't perform the same tests by dose.
+
+```{r}
+x <- qnorm(c(0.25, 0.75))
+y <- quantile(teeth[teeth$supp == "Orange Juice",]$len, c(0.25, 0.75))
+
+slope <- diff(y)/diff(x)
+int <- y[1L] - (slope * x[1L])
+
+d <- data.frame(teeth[teeth$supp == "Orange Juice",]$len)
+
+plot.oj <- ggplot(d, aes(sample = teeth[teeth$supp == "Orange Juice",]$len, col = I(steelblue))) + geom_qq() + 
+  geom_abline(slope = slope, intercept = int, col = I(orange), size = 1.1) +
+  labs(title = "Normal Quantile Plot of Tooth Length, Orange Juice", x = "", y = "") + 
+  theme(plot.title = element_text(hjust = 0.5)) + coord_flip()
+
+x <- qnorm(c(0.25, 0.75))
+y <- quantile(teeth[teeth$supp == "Ascorbic Acid",]$len, c(0.25, 0.75))
+
+slope <- diff(y)/diff(x)
+int <- y[1L] - (slope * x[1L])
+
+d <- data.frame(teeth[teeth$supp == "Ascorbic Acid",]$len)
+
+plot.vc <- ggplot(d, aes(sample = teeth[teeth$supp == "Ascorbic Acid",]$len, col = I(steelblue))) + geom_qq() + 
+  geom_abline(slope = slope, intercept = int, col = I(orange), size = 1.1) +
+  labs(title = "Normal Quantile Plot of Tooth Length, Ascorbic Acid", x = "", y = "") + 
+  theme(plot.title = element_text(hjust = 0.5)) + coord_flip()
+
+grid.arrange(plot.oj, plot.vc, nrow = 2)
+```
+
+The data appears to match the approximate lines pretty well, so it's probably safe to assume that the datasets are both fairly normal. We'll also pretend that subsets of the data (i.e. by dose) are also normal. Let's begin.
+
+## Test #1 -- Is There a Difference Between the Growth Provided by the Supplements?
+Our null hypothesis here is that there is *no* difference between the growth provided by orange juice and ascorbic acid, regardless of the dose. The alternate, it follows, is that there is *a* difference. We'll use a two-sided t-test.
+
+```{r}
+by.supp <- t.test(len ~ supp, data = teeth)
+by.supp
+```
+
+The 95% confidence interval ranges from `r by.supp$conf.int[1]` to `r by.supp$conf.int[2]`, a range which includes 0. Furthermore, the p-value is `r by.supp$p.value`, greater than a 0.05 alpha level. For these two reasons, we fail to reject the null hypothesis -- there appears to be a possibility that there is no difference between the growth provided by each type of supplement.
+
+Not to be dejected by this failure, we shall now take an [XKCD-style approach](https://xkcd.com/882/). Let's take a look at the different doses.
+
+## Test #2 -- Is There a Difference Between the Growth Provided by the Supplements for a 0.5 mg/day Dose?
+Our null hypothesis here is that there is *no* difference between the growth provided by orange juice and ascorbic acid for a 0.5 mg/day dose. The alternate, it follows, is that there is *a* difference. We'll use a two-sided t-test.
+
+```{r}
+by.dose.half <- t.test(len ~ supp, data = teeth[teeth$dose == "0.5",])
+by.dose.half
+```
+
+The 95% confidence interval ranges from `r by.dose.half$conf.int[1]` to `r by.dose.half$conf.int[2]`, a range which does not include 0. Furthermore, the p-value is `r by.dose.half$p.value`, less than a 0.05 alpha level. For these two reasons, we successfully reject the null hypothesis -- there appears to be a possibility that there is indeed a difference between the growth provided by each type of supplement for a 0.5 mg/day dose.
+
+## Test #3 -- Is There a Difference Between the Growth Provided by the Supplements for a 1.0 mg/day Dose?
+Our null hypothesis here is that there is *no* difference between the growth provided by orange juice and ascorbic acid for a 1.0 mg/day dose. The alternate, it follows, is that there is *a* difference. We'll use a two-sided t-test.
+
+```{r}
+by.dose.one <- t.test(len ~ supp, data = teeth[teeth$dose == "1",])
+by.dose.one
+```
+
+The 95% confidence interval ranges from `r by.dose.one$conf.int[1]` to `r by.dose.one$conf.int[2]`, a range which does not includes 0. Furthermore, the p-value is `r by.dose.one$p.value`, less than a 0.05 alpha level. For these two reasons, we successfully reject the null hypothesis -- there appears to be a possibility that there is indeed a difference between the growth provided by each type of supplement for a 1.0 mg/day dose.
+
+## Test #4 -- Is There a Difference Between the Growth Provided by the Supplements for a 2.0 mg/day Dose?
+Our null hypothesis here is that there is *no* difference between the growth provided by orange juice and ascorbic acid for a 2.0 mg/day dose. The alternate, it follows, is that there is *a* difference. We'll use a two-sided t-test.
+
+```{r}
+by.dose.two <- t.test(len ~ supp, data = teeth[teeth$dose == "2",])
+by.dose.two
+```
+
+The 95% confidence interval ranges from `r by.dose.two$conf.int[1]` to `r by.dose.two$conf.int[2]`, a range which includes 0. Furthermore, the p-value is `r by.dose.two$p.value`, greater than a 0.05 alpha level. For these two reasons, we fail to reject the null hypothesis -- there appears to be a possibility that there is no difference between the growth provided by each type of supplement for a 2.0 mg/day dose.
+
+## Conclusions
+Because orange juice was evaluated first (so the calculation was in the order "OJ" - "VC"), we can conclude from our last three tests that orange juice does a better job at tooth growth at a 0.5 and 1.0 mg/day dose. However, for a 2.0 mg/day dose, it is not distinguishable which one works better. Furthermore, if we choose to ignore the dose level, it is again not distinguishable which one works better.
+
+Once again, we assumed that the datasets are normal (even when split up by dose) and, more importantly, that there are no confounding variables, i.e. external variables that may affect tooth growth (which, of course, is probably not true).
+
