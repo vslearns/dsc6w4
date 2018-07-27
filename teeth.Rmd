@@ -23,10 +23,6 @@ To ensure reproducibility, let's set a random seed. We'll also define our variab
 ```{r}
 teeth <- ToothGrowth      # a local copy won't hurt
 set.seed(8243)            # reproducibility
-
-binwidth <- 0.1           # a near-perfect binwidth :)
-steelblue <- "steelblue"  # a great fill color
-orange <- "#c56000"       # a great line color
 ```
 
 ## EDA
